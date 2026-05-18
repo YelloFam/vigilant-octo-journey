@@ -218,17 +218,28 @@
         document.getElementById("generateBtn").style.display = "none";
         document.getElementById("loadingText").style.display = "block";
 
-        const prompt = `
-        You are an expert high school English teacher building a vocabulary quiz for ${grade} grade.
+        const prompt = `You are an expert high school English teacher building a vocabulary quiz for ${grade} grade.
         Generate a structured vocabulary quiz data set for the following words: [${words.join(", ")}].
+        
         For EACH word, you must provide:
         1. A clear, grade-appropriate definition.
-        2. TWO distinct contextual sentences where the word is replaced by a blank "________".
+        2. EXACTLY SEVEN (7) distinct, completely unique contextual sentences where the word is replaced by a blank "________". 
+           - The sentences must contain clear context clues tailored to a ${grade} grader.
+           - Ensure all 7 sentences describe entirely different scenarios so retakes feel fresh.
+        
         You MUST respond strictly in the following JSON format without any markdown wrappers, backticks, or explanation:
         {
             "word": {
                 "definition": "definition string",
-                "sentences": ["Sentence 1 with ________", "Sentence 2 with ________"]
+                "sentences": [
+                    "Sentence 1...",
+                    "Sentence 2...",
+                    "Sentence 3...",
+                    "Sentence 4...",
+                    "Sentence 5...",
+                    "Sentence 6...",
+                    "Sentence 7..."
+                ]
             }
         }`;
 
