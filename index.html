@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LexiCraft - Vocabulary Assessment Engine</title>
+    <style>
+        :root {
+            --bg-color: #f4f6f9;
+            --card-bg: #ffffff;
+            --text-main: #2d3748;
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --accent-hint: #d97706;
+            --bg-hint: #fffbeb;
+            --border-hint: #fef3c7;
+            --success: #16a34a;
+            --border-color: #e2e8f0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+            color: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+
+        header h1 { margin: 0; font-size: 2.2rem; }
+        header p { margin: 5px 0 0 0; opacity: 0.9; }
+
+        .quiz-card {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+            border: 1px solid var(--border-color);
+        }
+
+        .word-bank {
+            background-color: #f8fafc;
+            border: 2px dashed #cbd5e1;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .word-tag {
+            background-color: #e2e8f0;
+            color: #334155;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .question-block {
+            margin-bottom: 24px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .question-block:last-child {
+            border-bottom: none;
+        }
+
+        .question-text {
+            font-size: 1.1rem;
+            font-weight: 500;
+            margin-bottom: 10px;
+        }
+
+        select, input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 1rem;
+            background-color: #fff;
+            box-sizing: border-box;
+        }
+
+        select:focus, input[type="text"]:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+
+        /* 2nd Chance Hint Alert Box */
+        .hint-box {
+            display: none;
+            background-color: var(--bg-hint);
+            border: 1px solid var(--border-hint);
+            border-left: 4px solid var(--accent-hint);
+            padding: 12px;
+            border-radius: 6px;
+            margin-top: 12px;
+            font-size: 0.95rem;
+            color: #92400e;
+        }
+
+        .hint-box.visible { display: block; }
+
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 14px;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            text-align: center;
+        }
+
+        .btn:hover { background-color: var(--primary-hover); }
+        .btn-retry { background-color: #64748b; margin-top: 15px;}
+        .btn-retry:hover { background-color: #475569; }
+
+        .score-banner {
+            display: none;
+            text-align: center;
+            background-color: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            color: #166534;
+            padding: 20px;
+            border-radius: 8px;
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 25px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>LexiCraft</h1>
+        <p>9th Grade English Vocabulary Engine • 5-Word Core Slice Demo</p>
+    </header>
+
+    <div id="scoreBanner" class="score-banner"></div>
+
+    <div class="quiz-card">
+        <div id="wordBankContainer">
+            <h3 style="margin-top:0;">Available Word Bank</h3>
+            <div class="word-bank" id="wordBank"></div>
+        </div>
+
+        <form id="quizForm">
+            <div id="questionsContainer"></div>
+            <button type="submit" id="submitBtn" class="btn">Review First Draft</button>
+        </form>
+        <button id="retryBtn" class="btn btn-retry" style="display: none;">Regenerate Entire Quiz (Anti-Cheat)</button>
+    </div>
+</div>
+
+<script>
+    // 1. ENGINE ASSESSMENT DATABASE
+    // Multi-sentence mapping matrix handles immediate structural regeneration on retries
+    const VOCAB_DATABASE = {
+        "austere": {
+            "definition": "severe, strict, or completely bare.",
+            "sentences": [
+                "The classroom was ________, with nothing on the walls except a simple chalkboard.",
+                "The writer's novel used a stark, ________ prose style that entirely avoided fancy or flowery metaphors."
+            ]
+        },
+        "capricious": {
+            "definition": "unpredictable, or changing moods suddenly without a clear reason.",
+            "sentences": [
+                "The principal made a ________ decision to cancel spirit week without any warning.",
+                "With the island's ________ weather patterns, you can experience heavy rain and hot sun in the same hour."
+            ]
+        },
+        "ephemeral": {
+            "definition": "lasting for a very short period of time.",
+            "sentences": [
+                "The beautiful pink cherry blossoms are completely ________, falling off the trees after just a few days.",
+                "The fame built from a viral video is usually ________; people move on to a new clip within a week."
+            ]
+        },
+        "fastidious": {
+            "definition": "extremely attentive to accuracy, cleanliness, and small details.",
+            "sentences": [
+                "The museum curator was so ________ about the display that she used a ruler to measure the space between frames.",
+                "Because he was a ________ mechanic, he scrubbed every single tool clean before putting it back into its box."
+            ]
+        },
+        "lucid": {
+            "definition": "clear, direct, and incredibly easy to understand.",
+            "sentences": [
+                "The math teacher gave a ________ explanation of the complex theorem, helping the entire class pass the test.",
+                "Despite suffering a bad fall, the patient remained completely ________ and answered all medical questions easily."
+            ]
+        }
+    };
+
+    // 2. STATE APP TRACKING
+    let activeWords = Object.keys(VOCAB_DATABASE);
+    let quizState = "Draft_1"; // Draft_1, Review_Hints, Final_Submission
+    let sentenceRotationIndex = 0;
+    let randomizedQuestions = [];
+
+    // Utility: Simple Fisher-Yates shuffle array mechanism
+    function shuffle(array) {
+        let arr = [...array];
+        for (let i = arr.length - 1; i > 0; i--) {
+            let j = Math.floor(Math.random() * (i + 1));
+            [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+        return arr;
+    }
+
+    // 3. CORE RENDERING ENGINE
+    function generateQuiz() {
+        const container = document.getElementById("questionsContainer");
+        const bankContainer = document.getElementById("wordBank");
+        container.innerHTML = "";
+        bankContainer.innerHTML = "";
+
+        // Build Word Bank Layout
+        shuffle(activeWords).forEach(word => {
+            const span = document.createElement("span");
+            span.className = "word-tag";
+            span.innerText = word;
+            bankContainer.appendChild(span);
+        });
+
+        // Assemble current question parameters using active rotation index
+        randomizedQuestions = [];
+        activeWords.forEach(word => {
+            const wordData = VOCAB_DATABASE[word];
+            const sentenceVariant = wordData.sentences[sentenceRotationIndex % wordData.sentences.length];
+            randomizedQuestions.push({
+                word: word,
+                prompt: sentenceVariant,
+                hint: wordData.definition
+            });
+        });
+
+        // Shuffle questions so order isn't static
+        randomizedQuestions = shuffle(randomizedQuestions);
+
+        // Append components into structural DOM
+        randomizedQuestions.forEach((q, index) => {
+            const block = document.createElement("div");
+            block.className = "question-block";
+            block.setAttribute("data-word", q.word);
+
+            const label = document.createElement("div");
+            label.className = "question-text";
+            label.innerText = `Question ${index + 1}: ${q.prompt}`;
+
+            // Provide dropdown select list for student entry
+            const select = document.createElement("select");
+            select.id = `input-${q.word}`;
+            select.required = true;
+            
+            // Add blank default choice
+            const defaultOpt = document.createElement("option");
+            defaultOpt.value = "";
+            defaultOpt.innerText = "-- Select a vocabulary word --";
+            select.appendChild(defaultOpt);
+
+            activeWords.forEach(w => {
+                const opt = document.createElement("option");
+                opt.value = w;
+                opt.innerText = w;
+                select.appendChild(opt);
+            });
+
+            // Create Hint Box Layer (Stays hidden until triggered by Draft 1 feedback loop)
+            const hintBox = document.createElement("div");
+            hintBox.className = "hint-box";
+            hintBox.id = `hint-${q.word}`;
+            hintBox.innerHTML = `💡 <strong>Lightbulb Hint:</strong> Look for a word that means: <em>"${q.hint}"</em>`;
+
+            block.appendChild(label);
+            block.appendChild(select);
+            block.appendChild(hintBox);
+            container.appendChild(block);
+        });
+    }
+
+    // 4. WORKFLOW STATE MACHINE
+    document.getElementById("quizForm").addEventListener("submit", function(e) {
+        e.preventDefault();
+
+        if (quizState === "Draft_1") {
+            // TRANSITION TO STATE 2: Process Draft One Evaluation & Supply Hints
+            activeWords.forEach(word => {
+                const selectElement = document.getElementById(`input-${word}`);
+                const hintBox = document.getElementById(`hint-${word}`);
+                
+                if (selectElement.value !== word) {
+                    // Turn on 2nd chance hints for mismatches, hiding direct corrections
+                    hintBox.classList.add("visible");
+                } else {
+                    hintBox.classList.remove("visible");
+                }
+            });
+
+            // UI Adjustments
+            document.getElementById("submitBtn").innerText = "Submit Final Draft";
+            quizState = "Review_Hints";
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+
+        } else if (quizState === "Review_Hints") {
+            // TRANSITION TO STATE 3: Final Grading Run
+            let score = 0;
+            activeWords.forEach(word => {
+                const selectElement = document.getElementById(`input-${word}`);
+                const hintBox = document.getElementById(`hint-${word}`);
+                
+                selectElement.disabled = true; // Lock choices
+                hintBox.classList.remove("visible"); // Hide hints
+
+                if (selectElement.value === word) {
+                    score++;
+                }
+            });
+
+            // Output Results Dashboard
+            const banner = document.getElementById("scoreBanner");
+            banner.innerText = `Quiz Evaluated! Final Score: ${score} / ${activeWords.length} (${(score / activeWords.length) * 100}%)`;
+            banner.style.display = "block";
+
+            document.getElementById("wordBankContainer").style.display = "none";
+            document.getElementById("submitBtn").style.display = "none";
+            document.getElementById("retryBtn").style.display = "block";
+            quizState = "Final_Submission";
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    });
+
+    // Handle Anti-Cheat Regeneration Trigger
+    document.getElementById("retryBtn").addEventListener("click", function() {
+        sentenceRotationIndex++; // Roll over matrix items to render different sentence options
+        quizState = "Draft_1";
+        
+        // Reset Layout Elements
+        document.getElementById("scoreBanner").style.display = "none";
+        document.getElementById("wordBankContainer").style.display = "block";
+        document.getElementById("submitBtn").style.display = "block";
+        document.getElementById("submitBtn").innerText = "Review First Draft";
+        document.getElementById("retryBtn").style.display = "none";
+
+        generateQuiz();
+    });
+
+    // Init Call on boot
+    generateQuiz();
+</script>
+
+</body>
+</html>
