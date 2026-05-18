@@ -132,6 +132,47 @@
 
         #quizInterface { display: none; }
         .loading { text-align: center; font-style: italic; color: #64748b; }
+
+        /* Floating Timer Badge Styles */
+        .timer-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, #1e293b, #0f172a);
+            color: white;
+            padding: 10px 18px;
+            border-radius: 30px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-family: monospace;
+            font-size: 1.2rem;
+            font-weight: bold;
+            z-index: 1000;
+            border: 2px solid var(--border-color);
+            transition: all 0.3s ease;
+        }
+
+        .timer-container.warning {
+            background: linear-gradient(135deg, #dc2626, #991b1b);
+            border-color: #fca5a5;
+            transform: scale(1.05);
+            animation: pulse 1s infinite alternate;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.4); }
+            100% { box-shadow: 0 0 0 10px rgba(220, 38, 38, 0); }
+        }
+
+        @media (max-width: 768px) {
+            .timer-container {
+                position: static;
+                margin: 0 auto 20px auto;
+                width: max-content;
+            }
+        }
     </style>
 </head>
 <body>
@@ -142,6 +183,11 @@
         <p>Serverless GitHub Deployment Edition</p>
     </header>
 
+<!-- Floating Timer Element -->
+    <div id="quizTimer" class="timer-container" style="display: none;">
+        ⏱️ <span id="timeDisplay">05:00</span>
+    </div>
+    
     <!-- SETUP SCREEN -->
     <div id="setupInterface" class="card">
         <h2>Quiz Configuration</h2>
@@ -183,6 +229,55 @@
 </div>
 
 <script>
+let timerInterval = null;
+    let timeRemaining = 420; // 420 seconds = 7 minutes (Adjust as needed)
+    const QUIZ_DURATION = 420;
+
+function startTimer() {
+        clearInterval(timerInterval);
+        const timerElement = document.getElementById("quizTimer");
+        timerElement.style.display = "flex";
+        
+        timerInterval = setInterval(() => {
+            timeRemaining--;
+            
+            // Format time into MM:SS format
+            const minutes = Math.floor(timeRemaining / 60);
+            const seconds = timeRemaining % 60;
+            document.getElementById("timeDisplay").innerText = 
+                `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            
+            // Add warning pulse animation if under 60 seconds remain
+            if (timeRemaining <= 60) {
+                timerElement.classList.add("warning");
+            } else {
+                timerElement.classList.remove("warning");
+            }
+
+            // Force automatic submission if time reaches zero
+            if (timeRemaining <= 0) {
+                clearInterval(timerInterval);
+                handleTimeOut();
+            }
+        }, 1000);
+    }
+
+    function stopTimer() {
+        clearInterval(timerInterval);
+    }
+
+    function handleTimeOut() {
+        alert("⏱️ Time's up! Your current answers are being submitted.");
+        
+        // If they are on Draft 1, push them directly through to the final view
+        if (quizState === "Draft_1") {
+            quizState = "Review_Hints"; 
+        }
+        // Force trigger final submission handler
+        document.getElementById("quizForm").dispatchEvent(new Event('submit'));
+    }
+
+    
     let VOCAB_DATABASE = {};
     let activeWords = [];
     let quizState = "Draft_1";
@@ -272,7 +367,8 @@ try {
             
             document.getElementById("setupInterface").style.display = "none";
             document.getElementById("quizInterface").style.display = "block";
-            
+            timeRemaining = QUIZ_DURATION; // Reset clock duration
+startTimer(); // 🚀 Fire up timer
             generateQuizUI();
 
         } catch (error) {
@@ -349,6 +445,7 @@ try {
         e.preventDefault();
 
         if (quizState === "Draft_1") {
+            stopTimer(); // ⏸️ Pause while viewing hints
             activeWords.forEach(word => {
                 const selectElement = document.getElementById(`input-${word}`);
                 const hintBox = document.getElementById(`hint-${word}`);
@@ -365,6 +462,8 @@ try {
             window.scrollTo({ top: 0, behavior: 'smooth' });
 
         } else if (quizState === "Review_Hints") {
+            stopTimer(); // ⏹️ Kill timer completely
+         document.getElementById("quizTimer").style.display = "none";
             let score = 0;
             activeWords.forEach(word => {
                 const selectElement = document.getElementById(`input-${word}`);
@@ -390,6 +489,13 @@ try {
     document.getElementById("retryBtn").addEventListener("click", function() {
         sentenceRotationIndex++;
         quizState = "Draft_1";
+
+        // Reset Timer State Parameters
+   timeRemaining = QUIZ_DURATION;
+   document.getElementById("quizTimer").classList.remove("warning");
+   startTimer(); // 🚀 Re-launch clock for round two
+
+
         
         document.getElementById("scoreBanner").style.display = "none";
         document.getElementById("submitBtn").style.display = "block";
